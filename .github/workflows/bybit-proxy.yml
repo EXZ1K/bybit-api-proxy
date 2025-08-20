@@ -13,14 +13,6 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        
-    - name: Install axios
-      run: npm install axios
-        
     - name: Test Bybit API
       id: test
       run: |
@@ -35,83 +27,27 @@ jobs:
         
         if [ $status_code -eq 0 ]; then
           echo "::set-output name=success::true"
-          # Сохраняем ответ в файл для безопасной передачи
-          echo "$response" > response.txt
-          echo "::set-output name=response_file::response.txt"
-          echo "::set-output name=comment::## Bybit API Test Success!\n\n**Response saved to file**"
+          echo "::set-output name=comment::## Bybit API Test Success! Response received successfully."
         else
           echo "::set-output name=success::false"
-          echo "::set-output name=response::Error: curl failed with code $status_code"
-          echo "::set-output name=comment::## Bybit API Test Failed!\n\n**Error:** curl failed with code $status_code"
+          echo "::set-output name=comment::## Bybit API Test Failed! Error code: $status_code"
         fi
-        
-    - name: Show outputs
-      run: |
-        echo "Success: ${{ steps.test.outputs.success }}"
-        echo "Response file: ${{ steps.test.outputs.response_file }}"
         
     - name: Comment on issue
       if: github.event_name == 'issues'
       uses: actions/github-script@v7
       with:
         script: |
-          const fs = require('fs');
+          const comment = '${{ steps.test.outputs.comment }}';
+          const issue_number = context.issue.number;
           
-          try {
-            const success = '${{ steps.test.outputs.success }}';
-            const responseFile = '${{ steps.test.outputs.response_file }}';
-            
-            let comment = '';
-            
-            if (success === 'true') {
-              // Читаем ответ из файла
-              let responseContent = 'No response content';
-              try {
-                if (fs.existsSync(responseFile)) {
-                  responseContent = fs.readFileSync(responseFile, 'utf8');
-                  // Ограничиваем длину для безопасности
-                  if (responseContent.length > 1000) {
-                    responseContent = responseContent.substring(0, 1000) + '... (truncated)';
-                  }
-                }
-              } catch (readError) {
-                responseContent = 'Error reading response: ' + readError.message;
-              }
-              
-              comment = `## ✅ Bybit API Test Success!
-
-**Endpoint:** \`/v5/public/time\`
-**Status:** Success
-**Response:** \`\`\`json
-${responseContent}
-\`\`\`
-
-**Timestamp:** ${new Date().toISOString()}
-**GitHub Actions:** ✅ Working`;
-              
-            } else {
-              comment = `## ❌ Bybit API Test Failed
-
-**Error:** Request failed
-**Timestamp:** ${new Date().toISOString()}
-**GitHub Actions:** ❌ Failed`;
-            }
-            
-            const issue_number = context.issue.number;
-            
-            console.log('Adding comment to issue:', issue_number);
-            console.log('Comment length:', comment.length);
-            
-            await github.rest.issues.createComment({
-              issue_number: issue_number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: comment
-            });
-            
-            console.log('Comment added successfully!');
-            
-          } catch (error) {
-            console.error('Error in comment script:', error);
-            throw error;
-          }
+          console.log('Adding comment to issue:', issue_number);
+          
+          await github.rest.issues.createComment({
+            issue_number: issue_number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+          
+          console.log('Comment added successfully!');
