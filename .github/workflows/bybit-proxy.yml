@@ -5,6 +5,10 @@ on:
     types: [opened]
   workflow_dispatch:
 
+permissions:
+  issues: write
+  contents: read
+
 jobs:
   proxy-request:
     runs-on: ubuntu-latest
@@ -18,7 +22,6 @@ jobs:
       run: |
         echo "Testing Bybit API with curl..."
         
-        # Тестируем публичный endpoint
         response=$(curl -s "https://api.bybit.com/v5/public/time")
         status_code=$?
         
